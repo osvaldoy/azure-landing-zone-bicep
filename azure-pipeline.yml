@@ -6,8 +6,8 @@ pool:
 variables:
   ServiceConnectionName: 'omyorgapps'
   EnvironmentType: 'Test'
-  ResourceGroupName: 'TestLab'
-  DeploymentDefaultLocation: 'cacentral'
+  ResourceGroupName: 'ToyWebsite'
+  DeploymentDefaultLocation: 'canadacentral'
 
 jobs:
 - job:
