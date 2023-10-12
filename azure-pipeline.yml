@@ -15,8 +15,10 @@ jobs:
   - task: AzureResourceManagerTemplateDeployment@3
     inputs:
       connectedServiceName: $(ServiceConnectionName)
+      deploymentName: $(Build.BuildNumber)
       location: $(DeploymentDefaultLocation)
       resourceGroupName: $(ResourceGroupName)
-      csmFile: deploy/main.bicep
+      csmFile: main.bicep
       overrideParameters: >
         -environmentType $(EnvironmentType)
+        -deployToyManualsStorageAccount $(DeployToyManualsStorageAccount)
