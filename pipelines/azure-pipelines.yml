@@ -24,8 +24,6 @@ variables:
   value: "rg-whatif-lz-portfolio"
 - name: bicepFile
   value: "bicep/main.bicep"
-- name: whatifParams
-  value: "workloadName=portfolio env=dev monitoringEnabled=false storageEnabled=false"
 - name: GITHUB_OWNER
   value: "osvaldoy"
 - name: GITHUB_REPO
@@ -58,7 +56,11 @@ stages:
         resourceGroup: $(resourceGroup)
         location: $(location)
         bicepFile: $(bicepFile)
-        parameters: $(whatifParams)
+        bicepParams:
+          workloadName: portfolio
+          env: dev
+          monitoringEnabled: false
+          storageEnabled: false
 
 - stage: MirrorGitHub
   dependsOn:
