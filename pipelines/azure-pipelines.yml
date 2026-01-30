@@ -1,3 +1,9 @@
+variables:
+- group: github-mirror-secrets
+- name: GITHUB_REPO
+  value: azure-landing-zone-bicep
+
+
 trigger:
   branches:
     include:
@@ -17,6 +23,8 @@ variables:
   workloadName: "portfolio"
   monitoringEnabled: "false"
   storageEnabled: "false"
+  GITHUB_OWNER: "<SEU_USER_OU_ORG>"
+  GITHUB_REPO: "azure-landing-zone-bicep"
 
 stages:
 - stage: Validate
@@ -52,3 +60,51 @@ stages:
         env: $(env)
         monitoringEnabled: $(monitoringEnabled)
         storageEnabled: $(storageEnabled)
+- stage: MirrorGitHub
+  displayName: "Mirror to GitHub (read-only)"
+  dependsOn:
+    - Validate
+    - WhatIf
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: Mirror
+    displayName: "Push Azure Repos -> GitHub"
+    pool:
+      vmImage: "ubuntu-latest"
+    steps:
+    - checkout: self
+      persistCredentials: true
+      fetchDepth: 0
+
+    - bash: |
+        set -euo pipefail
+
+        echo "Configuring git identity..."
+        git config user.email "azuredevops-bot@local"
+        git config user.name  "azuredevops-bot"
+
+        echo "Preparing GitHub remote..."
+        # Remote URL uses PAT via header-safe format
+        # IMPORTANT: don't echo the URL to avoid leaking secrets
+        GITHUB_URL="https://$(GITHUB_OWNER):$(GITHUB_PAT)@github.com/$(GITHUB_OWNER)/$(GITHUB_REPO).git"
+
+        # Add or update remote
+        if git remote get-url github >/dev/null 2>&1; then
+          git remote set-url github "$GITHUB_URL"
+        else
+          git remote add github "$GITHUB_URL"
+        fi
+
+        echo "Fetching and pushing..."
+        git fetch --all --tags
+
+        # Push main + tags to GitHub mirror
+        git push github HEAD:main
+        git push github --tags
+
+        echo "Mirror completed."
+      displayName: "Mirror main + tags to GitHub"
+      env:
+        GITHUB_PAT: $(GITHUB_PAT)
+        GITHUB_OWNER: $(GITHUB_OWNER)
+        GITHUB_REPO: $(GITHUB_REPO)
