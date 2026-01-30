@@ -1,0 +1,30 @@
+parameters:
+  bicepFile: ""
+  location: ""
+  resourceGroup: ""
+  workloadName: ""
+  env: ""
+  monitoringEnabled: "false"
+  storageEnabled: "false"
+
+steps:
+# IMPORTANTE:
+# Esse job precisa usar um Service Connection do tipo AzureRM (ARM)
+# e rodar com AzureCLI@2 ou via az login automático pelo service connection.
+- task: AzureCLI@2
+  displayName: "Create RG (safe) + What-If"
+  inputs:
+    azureSubscription: "omyorgapps"   # <<< TROCA AQUI PELO NOME DO TEU SERVICE CONNECTION
+    scriptType: "ps"
+    scriptLocation: "inlineScript"
+    inlineScript: |
+      az account show
+      az group create -n "${{ parameters.resourceGroup }}" -l "${{ parameters.location }}" 1>$null
+
+      az deployment group what-if `
+        -g "${{ parameters.resourceGroup }}" `
+        -f "${{ parameters.bicepFile }}" `
+        -p workloadName="${{ parameters.workloadName }}" `
+           env="${{ parameters.env }}" `
+           monitoringEnabled=${{ parameters.monitoringEnabled }} `
+           storageEnabled=${{ parameters.storageEnabled }}

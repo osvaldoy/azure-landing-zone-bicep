@@ -1,0 +1,54 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - "*"
+
+variables:
+  # Ajusta aqui
+  bicepFile: "bicep/main.bicep"
+  location: "canadacentral"
+  resourceGroup: "rg-whatif-lz-portfolio"
+  env: "dev"
+  workloadName: "portfolio"
+  monitoringEnabled: "false"
+  storageEnabled: "false"
+
+stages:
+- stage: Validate
+  displayName: "Validate (Bicep build)"
+  jobs:
+  - job: Build
+    displayName: "Bicep build"
+    pool:
+      vmImage: "windows-latest"
+    steps:
+    - checkout: self
+    - template: templates/validate.yml
+      parameters:
+        bicepFile: $(bicepFile)
+
+- stage: WhatIf
+  displayName: "What-If (no deploy)"
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: WhatIf
+    displayName: "ARM What-If"
+    pool:
+      vmImage: "windows-latest"
+    steps:
+    - checkout: self
+    - template: templates/whatif.yml
+      parameters:
+        bicepFile: $(bicepFile)
+        location: $(location)
+        resourceGroup: $(resourceGroup)
+        workloadName: $(workloadName)
+        env: $(env)
+        monitoringEnabled: $(monitoringEnabled)
+        storageEnabled: $(storageEnabled)
