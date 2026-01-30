@@ -1,4 +1,3 @@
-
 trigger:
   branches:
     include:
@@ -9,64 +8,59 @@ pr:
     include:
       - "*"
 
+resources:
+  repositories:
+    - repository: cicd
+      type: git
+      name: sc-azure-portfolio/azure-infra-cicd-azuredevops
+
 variables:
 - group: github-mirror-secrets
-- name: bicepFile
-  value: "bicep/main.bicep"
+- name: azureSubscription
+  value: "omyorgapps"
 - name: location
   value: "canadacentral"
 - name: resourceGroup
   value: "rg-whatif-lz-portfolio"
-- name: env
-  value: "dev"
-- name: workloadName
-  value: "portfolio"
-- name: monitoringEnabled
-  value: "false"
-- name: storageEnabled
-  value: "false"
+- name: bicepFile
+  value: "bicep/main.bicep"
+- name: whatifParams
+  value: "workloadName=portfolio env=dev monitoringEnabled=false storageEnabled=false"
 - name: GITHUB_OWNER
   value: "osvaldoy"
 - name: GITHUB_REPO
   value: "azure-landing-zone-bicep"
 
-
 stages:
 - stage: Validate
-  displayName: "Validate (Bicep build)"
   jobs:
   - job: Build
-    displayName: "Bicep build"
     pool:
-      vmImage: "windows-latest"
+      vmImage: ubuntu-latest
     steps:
     - checkout: self
-    - template: templates/validate.yml
+    - template: pipelines/templates/validate-bicep.yml@cicd
       parameters:
         bicepFile: $(bicepFile)
 
 - stage: WhatIf
-  displayName: "What-If (no deploy)"
   dependsOn: Validate
   condition: succeeded()
   jobs:
   - job: WhatIf
-    displayName: "ARM What-If"
     pool:
-      vmImage: "windows-latest"
+      vmImage: ubuntu-latest
     steps:
     - checkout: self
-    - template: templates/whatif.yml
+    - template: pipelines/templates/whatif-group.yml@cicd
       parameters:
-        bicepFile: $(bicepFile)
-        location: $(location)
+        azureSubscription: $(azureSubscription)
         resourceGroup: $(resourceGroup)
-        workloadName: $(workloadName)
-        env: $(env)
-        monitoringEnabled: $(monitoringEnabled)
-        storageEnabled: $(storageEnabled)
+        location: $(location)
+        bicepFile: $(bicepFile)
+        parameters: $(whatifParams)
+
 - stage: MirrorGitHub
-  displayName: "Mirror to GitHub (read-only)"
   dependsOn:
     - Validate
     - WhatIf
@@ -76,52 +70,11 @@ stages:
       eq(variables['Build.SourceBranch'], 'refs/heads/main')
     )
   jobs:
-    - job: Mirror
-      displayName: "Push Azure Repos -> GitHub"
-      pool:
-        vmImage: ubuntu-latest
-      steps:
-        - checkout: self
-          persistCredentials: true
-          fetchDepth: 0
-
-        - bash: |
-            set -euo pipefail
-
-            if [ -z "${GITHUB_PAT:-}" ]; then
-              echo "ERROR: GITHUB_PAT is not set."
-              exit 1
-            fi
-            if [ -z "${GITHUB_OWNER:-}" ]; then
-              echo "ERROR: GITHUB_OWNER is not set."
-              exit 1
-            fi
-            if [ -z "${GITHUB_REPO:-}" ]; then
-              echo "ERROR: GITHUB_REPO is not set."
-              exit 1
-            fi
-
-            git config user.email "azuredevops-bot@local"
-            git config user.name  "azuredevops-bot"
-
-            git fetch origin --prune --tags
-
-            # Recreate remote (avoid stale unauthenticated URL)
-            git remote remove github 2>/dev/null || true
-            git remote add github "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
-
-            # GitHub auth (robust): Basic header with x-access-token
-            BASIC="$(printf "x-access-token:%s" "$GITHUB_PAT" | base64 -w0)"
-            AUTH_HEADER="Authorization: Basic ${BASIC}"
-
-            echo "Pushing to GitHub mirror..."
-            git -c http.extraheader="${AUTH_HEADER}" push github HEAD:main
-            git -c http.extraheader="${AUTH_HEADER}" push github --tags
-
-            echo "Mirror completed successfully."
-          displayName: "Mirror main + tags to GitHub"
-          env:
-            GITHUB_PAT: $(GITHUB_PAT)
-            GITHUB_OWNER: $(GITHUB_OWNER)
-            GITHUB_REPO: $(GITHUB_REPO)
-
+  - job: Mirror
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - template: pipelines/templates/mirror-github.yml@cicd
+      parameters:
+        githubOwner: $(GITHUB_OWNER)
+        githubRepo: $(GITHUB_REPO)
