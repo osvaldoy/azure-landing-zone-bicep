@@ -106,11 +106,15 @@ stages:
 
             git fetch origin --prune --tags
 
+            # Recreate remote (avoid stale unauthenticated URL)
             git remote remove github 2>/dev/null || true
             git remote add github "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
 
-            AUTH_HEADER="Authorization: token ${GITHUB_PAT}"
+            # GitHub auth (robust): Basic header with x-access-token
+            BASIC="$(printf "x-access-token:%s" "$GITHUB_PAT" | base64 -w0)"
+            AUTH_HEADER="Authorization: Basic ${BASIC}"
 
+            echo "Pushing to GitHub mirror..."
             git -c http.extraheader="${AUTH_HEADER}" push github HEAD:main
             git -c http.extraheader="${AUTH_HEADER}" push github --tags
 
@@ -120,3 +124,4 @@ stages:
             GITHUB_PAT: $(GITHUB_PAT)
             GITHUB_OWNER: $(GITHUB_OWNER)
             GITHUB_REPO: $(GITHUB_REPO)
+
