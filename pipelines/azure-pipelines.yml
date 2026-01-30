@@ -91,7 +91,7 @@ stages:
         echo "Preparing GitHub remote..."
         # Remote URL uses PAT via header-safe format
         # IMPORTANT: don't echo the URL to avoid leaking secrets
-        GITHUB_URL="https://$(GITHUB_OWNER):$(GITHUB_PAT)@github.com/$(GITHUB_OWNER)/$(GITHUB_REPO).git"
+        GITHUB_URL="https://github.com/osvaldoy/azure-landing-zone-bicep.git"
 
         # Add or update remote
         if git remote get-url github >/dev/null 2>&1; then
