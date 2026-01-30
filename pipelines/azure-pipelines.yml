@@ -85,26 +85,44 @@ stages:
           persistCredentials: true
           fetchDepth: 0
 
-        - bash: |
-            set -euo pipefail
+- bash: |
+    set -euo pipefail
 
-            git config user.email "azuredevops-bot@local"
-            git config user.name  "azuredevops-bot"
+    # Hard fail if secrets not available
+    if [ -z "${GITHUB_PAT:-}" ]; then
+      echo "ERROR: GITHUB_PAT is not set (check variable group permissions/authorization)."
+      exit 1
+    fi
+    if [ -z "${GITHUB_OWNER:-}" ]; then
+      echo "ERROR: GITHUB_OWNER is not set."
+      exit 1
+    fi
+    if [ -z "${GITHUB_REPO:-}" ]; then
+      echo "ERROR: GITHUB_REPO is not set."
+      exit 1
+    fi
 
-            git fetch origin --prune --tags
+    git config user.email "azuredevops-bot@local"
+    git config user.name  "azuredevops-bot"
 
-            if ! git remote get-url github >/dev/null 2>&1; then
-              git remote add github "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
-            fi
+    # Ensure we have the full history
+    git fetch origin --prune --tags
 
-            AUTH_HEADER=$(printf "Authorization: token %s" "$GITHUB_PAT")
+    # Remote without creds
+    git remote remove github 2>/dev/null || true
+    git remote add github "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
 
-            git -c http.extraheader="$AUTH_HEADER" push github HEAD:main
-            git -c http.extraheader="$AUTH_HEADER" push github --tags
+    # GitHub requires "token", not "Bearer"
+    AUTH_HEADER="Authorization: token ${GITHUB_PAT}"
 
-            echo "Mirror completed successfully."
-          displayName: "Mirror main + tags to GitHub"
-          env:
-            GITHUB_PAT: $(GITHUB_PAT)
-            GITHUB_OWNER: $(GITHUB_OWNER)
-            GITHUB_REPO: $(GITHUB_REPO)
+    echo "Pushing to GitHub mirror..."
+    git -c http.extraheader="${AUTH_HEADER}" push github HEAD:main
+    git -c http.extraheader="${AUTH_HEADER}" push github --tags
+
+    echo "Mirror completed successfully."
+  displayName: "Mirror main + tags to GitHub"
+  env:
+    GITHUB_PAT: $(GITHUB_PAT)
+    GITHUB_OWNER: $(GITHUB_OWNER)
+    GITHUB_REPO: $(GITHUB_REPO)
+
