@@ -85,44 +85,38 @@ stages:
           persistCredentials: true
           fetchDepth: 0
 
-- bash: |
-    set -euo pipefail
+        - bash: |
+            set -euo pipefail
 
-    # Hard fail if secrets not available
-    if [ -z "${GITHUB_PAT:-}" ]; then
-      echo "ERROR: GITHUB_PAT is not set (check variable group permissions/authorization)."
-      exit 1
-    fi
-    if [ -z "${GITHUB_OWNER:-}" ]; then
-      echo "ERROR: GITHUB_OWNER is not set."
-      exit 1
-    fi
-    if [ -z "${GITHUB_REPO:-}" ]; then
-      echo "ERROR: GITHUB_REPO is not set."
-      exit 1
-    fi
+            if [ -z "${GITHUB_PAT:-}" ]; then
+              echo "ERROR: GITHUB_PAT is not set."
+              exit 1
+            fi
+            if [ -z "${GITHUB_OWNER:-}" ]; then
+              echo "ERROR: GITHUB_OWNER is not set."
+              exit 1
+            fi
+            if [ -z "${GITHUB_REPO:-}" ]; then
+              echo "ERROR: GITHUB_REPO is not set."
+              exit 1
+            fi
 
-    git config user.email "azuredevops-bot@local"
-    git config user.name  "azuredevops-bot"
+            git config user.email "azuredevops-bot@local"
+            git config user.name  "azuredevops-bot"
 
-    # Ensure we have the full history
-    git fetch origin --prune --tags
+            git fetch origin --prune --tags
 
-    # Remote without creds
-    git remote remove github 2>/dev/null || true
-    git remote add github "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
+            git remote remove github 2>/dev/null || true
+            git remote add github "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
 
-    # GitHub requires "token", not "Bearer"
-    AUTH_HEADER="Authorization: token ${GITHUB_PAT}"
+            AUTH_HEADER="Authorization: token ${GITHUB_PAT}"
 
-    echo "Pushing to GitHub mirror..."
-    git -c http.extraheader="${AUTH_HEADER}" push github HEAD:main
-    git -c http.extraheader="${AUTH_HEADER}" push github --tags
+            git -c http.extraheader="${AUTH_HEADER}" push github HEAD:main
+            git -c http.extraheader="${AUTH_HEADER}" push github --tags
 
-    echo "Mirror completed successfully."
-  displayName: "Mirror main + tags to GitHub"
-  env:
-    GITHUB_PAT: $(GITHUB_PAT)
-    GITHUB_OWNER: $(GITHUB_OWNER)
-    GITHUB_REPO: $(GITHUB_REPO)
-
+            echo "Mirror completed successfully."
+          displayName: "Mirror main + tags to GitHub"
+          env:
+            GITHUB_PAT: $(GITHUB_PAT)
+            GITHUB_OWNER: $(GITHUB_OWNER)
+            GITHUB_REPO: $(GITHUB_REPO)
