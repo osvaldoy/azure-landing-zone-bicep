@@ -1,8 +1,3 @@
-variables:
-- group: github-mirror-secrets
-- name: GITHUB_REPO
-  value: azure-landing-zone-bicep
-
 
 trigger:
   branches:
@@ -15,16 +10,26 @@ pr:
       - "*"
 
 variables:
-  # Ajusta aqui
-  bicepFile: "bicep/main.bicep"
-  location: "canadacentral"
-  resourceGroup: "rg-whatif-lz-portfolio"
-  env: "dev"
-  workloadName: "portfolio"
-  monitoringEnabled: "false"
-  storageEnabled: "false"
-  GITHUB_OWNER: "<SEU_USER_OU_ORG>"
-  GITHUB_REPO: "azure-landing-zone-bicep"
+- group: github-mirror-secrets
+- name: bicepFile
+  value: "bicep/main.bicep"
+- name: location
+  value: "canadacentral"
+- name: resourceGroup
+  value: "rg-whatif-lz-portfolio"
+- name: env
+  value: "dev"
+- name: workloadName
+  value: "portfolio"
+- name: monitoringEnabled
+  value: "false"
+- name: storageEnabled
+  value: "false"
+- name: GITHUB_OWNER
+  value: "SEU_USER_OU_ORG"
+- name: GITHUB_REPO
+  value: "azure-landing-zone-bicep"
+
 
 stages:
 - stage: Validate
