@@ -16,23 +16,34 @@ resources:
 
 variables:
 - group: github-mirror-secrets
+
 - name: azureSubscription
   value: "omyorgapps"
+
 - name: location
   value: "canadacentral"
+
 - name: resourceGroup
   value: "rg-whatif-lz-portfolio"
+
 - name: bicepFile
   value: "bicep/main.bicep"
+
 - name: GITHUB_OWNER
   value: "osvaldoy"
+
 - name: GITHUB_REPO
   value: "azure-landing-zone-bicep"
 
 stages:
+# -------------------------
+# Validate
+# -------------------------
 - stage: Validate
+  displayName: "Validate Bicep"
   jobs:
   - job: Build
+    displayName: "Bicep build"
     pool:
       vmImage: ubuntu-latest
     steps:
@@ -41,7 +52,11 @@ stages:
       parameters:
         bicepFile: $(bicepFile)
 
+# -------------------------
+# What-If
+# -------------------------
 - stage: WhatIf
+  displayName: "What-If (Resource Group)"
   dependsOn: Validate
   condition: succeeded()
   jobs:
@@ -57,12 +72,16 @@ stages:
         location: $(location)
         bicepFile: $(bicepFile)
         bicepParams:
-          workloadName: portfolio
           env: dev
+          workloadName: portfolio
           monitoringEnabled: false
           storageEnabled: false
 
+# -------------------------
+# Mirror to GitHub
+# -------------------------
 - stage: MirrorGitHub
+  displayName: "Mirror to GitHub (read-only)"
   dependsOn:
     - Validate
     - WhatIf
@@ -73,6 +92,7 @@ stages:
     )
   jobs:
   - job: Mirror
+    displayName: "Push Azure Repos -> GitHub"
     pool:
       vmImage: ubuntu-latest
     steps:
