@@ -1,0 +1,43 @@
+############################
+# Local tooling / support
+############################
+support/
+tools/
+local/
+scratch/
+tmp/
+
+New-RepoScaffold.ps1
+*.local.ps1
+*.private.ps1
+
+############################
+# Logs / outputs
+############################
+*.log
+logs/
+output/
+out/
+
+############################
+# Local docs / notes
+############################
+notes/
+drafts/
+*.todo.md
+*.notes.md
+
+############################
+# Editors / OS
+############################
+.vscode/*
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+############################
+# Secrets (defensive)
+############################
+*.env
+*.secret
+*.secrets.*
