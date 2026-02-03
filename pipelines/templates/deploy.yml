@@ -1,0 +1,25 @@
+parameters:
+  azureSubscription: ""
+  resourceGroup: ""
+  location: "canadacentral"
+  bicepFile: "bicep/main.bicep"
+  parametersFile: ""
+
+steps:
+- task: AzureCLI@2
+  displayName: "Deploy Bicep (manual approval recommended)"
+  inputs:
+    azureSubscription: "${{ parameters.azureSubscription }}"
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+      set -euo pipefail
+
+      az group create \
+        -n "${{ parameters.resourceGroup }}" \
+        -l "${{ parameters.location }}"
+
+      az deployment group create \
+        -g "${{ parameters.resourceGroup }}" \
+        -f "${{ parameters.bicepFile }}" \
+        -p @"${{ parameters.parametersFile }}"

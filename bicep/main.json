@@ -1,0 +1,643 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.40.2.10011",
+      "templateHash": "9679687286253596914"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Deployment location. Defaults to resource group location."
+      }
+    },
+    "env": {
+      "type": "string",
+      "defaultValue": "dev",
+      "allowedValues": [
+        "dev",
+        "test",
+        "prod"
+      ],
+      "metadata": {
+        "description": "Environment name (dev|test|prod)."
+      }
+    },
+    "workloadName": {
+      "type": "string",
+      "metadata": {
+        "description": "Short application/workload name used in resource naming."
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {
+        "workload": "[parameters('workloadName')]",
+        "environment": "[parameters('env')]",
+        "managedBy": "bicep"
+      },
+      "metadata": {
+        "description": "Common tags applied to all resources."
+      }
+    },
+    "monitoringEnabled": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Whether to enable Log Analytics (kept optional to avoid costs)."
+      }
+    },
+    "storageEnabled": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether to create a Storage Account (secure defaults)."
+      }
+    },
+    "vnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.0.0/16",
+      "metadata": {
+        "description": "Virtual network address space."
+      }
+    },
+    "subnetMgmtPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.1.0/24",
+      "metadata": {
+        "description": "Subnet prefix for mgmt subnet."
+      }
+    },
+    "subnetWorkloadPrefix": {
+      "type": "string",
+      "defaultValue": "10.10.2.0/24",
+      "metadata": {
+        "description": "Subnet prefix for workload subnet."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('mod-monitoring-{0}', parameters('env'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "enabled": {
+            "value": "[parameters('monitoringEnabled')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "workloadName": {
+            "value": "[parameters('workloadName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.40.2.10011",
+              "templateHash": "14883094363827568381"
+            }
+          },
+          "parameters": {
+            "enabled": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable/disable monitoring resources."
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Deployment location."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Common tags."
+              }
+            },
+            "env": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name."
+              }
+            },
+            "workloadName": {
+              "type": "string",
+              "metadata": {
+                "description": "Workload name."
+              }
+            }
+          },
+          "variables": {
+            "namePrefix": "[toLower(format('{0}-{1}', parameters('workloadName'), parameters('env')))]",
+            "lawName": "[format('{0}-law', variables('namePrefix'))]"
+          },
+          "resources": [
+            {
+              "condition": "[parameters('enabled')]",
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[variables('lawName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30,
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "workspaceId": {
+              "type": "string",
+              "value": "[if(parameters('enabled'), resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '')]"
+            },
+            "workspaceName": {
+              "type": "string",
+              "value": "[if(parameters('enabled'), variables('lawName'), '')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('mod-network-{0}', parameters('env'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "workloadName": {
+            "value": "[parameters('workloadName')]"
+          },
+          "vnetAddressPrefix": {
+            "value": "[parameters('vnetAddressPrefix')]"
+          },
+          "subnetMgmtPrefix": {
+            "value": "[parameters('subnetMgmtPrefix')]"
+          },
+          "subnetWorkloadPrefix": {
+            "value": "[parameters('subnetWorkloadPrefix')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('mod-monitoring-{0}', parameters('env'))), '2025-04-01').outputs.workspaceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.40.2.10011",
+              "templateHash": "1663919009670916497"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Deployment location."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Common tags."
+              }
+            },
+            "env": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name."
+              }
+            },
+            "workloadName": {
+              "type": "string",
+              "metadata": {
+                "description": "Workload name."
+              }
+            },
+            "vnetAddressPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet address space."
+              }
+            },
+            "subnetMgmtPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "Mgmt subnet prefix."
+              }
+            },
+            "subnetWorkloadPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "Workload subnet prefix."
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional Log Analytics Workspace resource ID for diagnostics. Use empty string to disable."
+              }
+            }
+          },
+          "variables": {
+            "namePrefix": "[toLower(format('{0}-{1}', parameters('workloadName'), parameters('env')))]",
+            "vnetName": "[format('{0}-vnet', variables('namePrefix'))]",
+            "nsgMgmtName": "[format('{0}-nsg-mgmt', variables('namePrefix'))]",
+            "nsgWorkloadName": "[format('{0}-nsg-work', variables('namePrefix'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2023-11-01",
+              "name": "[variables('nsgMgmtName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "Allow-HTTPS-Inbound-From-VNet",
+                    "properties": {
+                      "priority": 110,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "443",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "*"
+                    }
+                  },
+                  {
+                    "name": "Deny-All-Inbound",
+                    "properties": {
+                      "priority": 4096,
+                      "direction": "Inbound",
+                      "access": "Deny",
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2023-11-01",
+              "name": "[variables('nsgWorkloadName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "Allow-IntraVnet",
+                    "properties": {
+                      "priority": 100,
+                      "direction": "Inbound",
+                      "access": "Allow",
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "VirtualNetwork"
+                    }
+                  },
+                  {
+                    "name": "Deny-All-Inbound",
+                    "properties": {
+                      "priority": 4096,
+                      "direction": "Inbound",
+                      "access": "Deny",
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-11-01",
+              "name": "[variables('vnetName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('vnetAddressPrefix')]"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "snet-mgmt",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnetMgmtPrefix')]",
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgMgmtName'))]"
+                      }
+                    }
+                  },
+                  {
+                    "name": "snet-workloads",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnetWorkloadPrefix')]",
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgWorkloadName'))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgMgmtName'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgWorkloadName'))]"
+              ]
+            },
+            {
+              "condition": "[not(equals(parameters('logAnalyticsWorkspaceId'), ''))]",
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+              "name": "[format('{0}-diag', variables('vnetName'))]",
+              "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+                "logs": [
+                  {
+                    "category": "VMProtectionAlerts",
+                    "enabled": false
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "AllMetrics",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+            },
+            "subnetMgmtId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'snet-mgmt')]"
+            },
+            "subnetWorkloadId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'snet-workloads')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('mod-monitoring-{0}', parameters('env')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('mod-storage-{0}', parameters('env'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "enabled": {
+            "value": "[parameters('storageEnabled')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "workloadName": {
+            "value": "[parameters('workloadName')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('mod-monitoring-{0}', parameters('env'))), '2025-04-01').outputs.workspaceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.40.2.10011",
+              "templateHash": "10264298707844230578"
+            }
+          },
+          "parameters": {
+            "enabled": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable/disable storage account."
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Deployment location."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Common tags."
+              }
+            },
+            "env": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name."
+              }
+            },
+            "workloadName": {
+              "type": "string",
+              "metadata": {
+                "description": "Workload name."
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional Log Analytics Workspace resource ID for diagnostics. Use empty string to disable."
+              }
+            }
+          },
+          "variables": {
+            "baseName": "[toLower(replace(format('{0}{1}', parameters('workloadName'), parameters('env')), '-', ''))]",
+            "uniq": "[uniqueString(resourceGroup().id, parameters('workloadName'), parameters('env'))]",
+            "saName": "[take(format('{0}{1}', variables('baseName'), variables('uniq')), 24)]"
+          },
+          "resources": [
+            {
+              "condition": "[parameters('enabled')]",
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('saName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "accessTier": "Hot",
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false,
+                "supportsHttpsTrafficOnly": true,
+                "publicNetworkAccess": "Disabled",
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Deny"
+                },
+                "encryption": {
+                  "keySource": "Microsoft.Storage",
+                  "services": {
+                    "blob": {
+                      "enabled": true
+                    },
+                    "file": {
+                      "enabled": true
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "condition": "[and(parameters('enabled'), not(equals(parameters('logAnalyticsWorkspaceId'), '')))]",
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('saName'))]",
+              "name": "[format('{0}-diag', variables('saName'))]",
+              "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+                "logs": [
+                  {
+                    "category": "StorageRead",
+                    "enabled": true
+                  },
+                  {
+                    "category": "StorageWrite",
+                    "enabled": true
+                  },
+                  {
+                    "category": "StorageDelete",
+                    "enabled": true
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "AllMetrics",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('saName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "storageAccountId": {
+              "type": "string",
+              "value": "[if(parameters('enabled'), resourceId('Microsoft.Storage/storageAccounts', variables('saName')), '')]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[if(parameters('enabled'), variables('saName'), '')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('mod-monitoring-{0}', parameters('env')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "vnetId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('mod-network-{0}', parameters('env'))), '2025-04-01').outputs.vnetId.value]"
+    },
+    "subnetMgmtId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('mod-network-{0}', parameters('env'))), '2025-04-01').outputs.subnetMgmtId.value]"
+    },
+    "subnetWorkloadId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('mod-network-{0}', parameters('env'))), '2025-04-01').outputs.subnetWorkloadId.value]"
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('mod-monitoring-{0}', parameters('env'))), '2025-04-01').outputs.workspaceId.value]"
+    },
+    "storageAccountId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('mod-storage-{0}', parameters('env'))), '2025-04-01').outputs.storageAccountId.value]"
+    }
+  }
+}

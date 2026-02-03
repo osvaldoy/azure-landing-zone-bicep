@@ -1,0 +1,8 @@
+parameters:
+  bicepFile: ""
+
+steps:
+- powershell: |
+    az bicep version
+    az bicep build --file "${{ parameters.bicepFile }}"
+  displayName: "Bicep build (compile)"

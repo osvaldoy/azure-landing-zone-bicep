@@ -1,0 +1,102 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - "*"
+
+resources:
+  repositories:
+    - repository: cicd
+      type: git
+      name: sc-azure-portfolio/azure-infra-cicd-azuredevops
+      ref: refs/heads/main
+variables:
+- group: github-mirror-secrets
+
+- name: azureSubscription
+  value: "omyorgapps"
+
+- name: location
+  value: "canadacentral"
+
+- name: resourceGroup
+  value: "rg-whatif-lz-portfolio"
+
+- name: bicepFile
+  value: "bicep/main.bicep"
+
+- name: GITHUB_OWNER
+  value: "osvaldoy"
+
+- name: GITHUB_REPO
+  value: "azure-landing-zone-bicep"
+
+stages:
+# -------------------------
+# Validate
+# -------------------------
+- stage: Validate
+  displayName: "Validate Bicep"
+  jobs:
+  - job: Build
+    displayName: "Bicep build"
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+    - template: pipelines/templates/validate-bicep.yml@cicd
+      parameters:
+        bicepFile: $(bicepFile)
+
+# -------------------------
+# What-If
+# -------------------------
+- stage: WhatIf
+  displayName: "What-If (Resource Group)"
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: WhatIf
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+    - template: pipelines/templates/whatif-group.yml@cicd
+      parameters:
+        azureSubscription: $(azureSubscription)
+        resourceGroup: $(resourceGroup)
+        location: $(location)
+        bicepFile: $(bicepFile)
+        bicepParams:
+          env: dev
+          workloadName: portfolio
+          monitoringEnabled: false
+          storageEnabled: false
+
+# -------------------------
+# Mirror to GitHub
+# -------------------------
+- stage: MirrorGitHub
+  displayName: "Mirror to GitHub (read-only)"
+  dependsOn:
+    - Validate
+    - WhatIf
+  condition: >
+    and(
+      succeeded(),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main')
+    )
+  jobs:
+  - job: Mirror
+    displayName: "Push Azure Repos -> GitHub"
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - template: pipelines/templates/mirror-github.yml@cicd
+      parameters:
+        githubOwner: $(GITHUB_OWNER)
+        githubRepo: $(GITHUB_REPO)
